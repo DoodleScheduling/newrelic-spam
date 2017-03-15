@@ -2,12 +2,12 @@
   "agents": [
     {
       "name": "Nginx-spam-monitor",
-      "logdir" : "/var/log/nginx",
-      "dateformat" : "%Y/%m/%d %H:%M",
-      "patternMethod" : "request: \"(GET|POST|PUT|DELETE)",
-      "patternIpv4" : "client: ([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\),",
-      "patternIpv6" : "client: (\\w*:\\w*:\\w*:\\w*:\\w*:\\w*),",
-      "patternEndpoint" : "(GET|POST|PUT|DELETE) /(\\w*) HTTP"
+      "logFile": "/var/log/nginx/error.log",
+      "dateFormat": "yyyy/MM/dd HH:mm",
+      "patternMethod": "request: \"(GET|POST|PUT|DELETE)",
+      "patternIpv4": "client: ([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}),",
+      "patternIpv6": "client: (\\w*:\\w*:\\w*:\\w*:\\w*:\\w*),",
+      "patternEndpoint": "(GET|POST|PUT|DELETE) (/.*) HTTP"
     }
   ]
 }

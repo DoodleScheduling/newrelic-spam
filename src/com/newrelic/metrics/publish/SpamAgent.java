@@ -5,10 +5,8 @@ import com.newrelic.metrics.publish.util.Logger;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,7 +19,7 @@ public class SpamAgent extends Agent {
 
     // Agent configuration, retrieved from plugin.json
     private final String name;
-    private final String command;
+    private final String[] command;
 
     // Regex patterns to match each part of the request
     private final Pattern patternMethod;
@@ -29,19 +27,15 @@ public class SpamAgent extends Agent {
     private final Pattern patternIpv6;
     private final Pattern patternEndpoint;
 
-
-    public SpamAgent(String name, String logfile, String dateformat, String patternMethod, String patternEndpoint, String patternIpv4, String patternIpv6) throws ConfigurationException {
+    public SpamAgent(String name, String logfile, String dateFormat, String patternMethod, String patternEndpoint, String patternIpv4, String patternIpv6) throws ConfigurationException {
         super(GUID, VERSION);
         this.name = name;
         this.patternMethod = Pattern.compile(patternMethod);
         this.patternEndpoint = Pattern.compile(patternEndpoint);
         this.patternIpv4 = Pattern.compile(patternIpv4);
         this.patternIpv6 = Pattern.compile(patternIpv6);
-        this.command = "grep \"$(date +'" + dateformat + "')\" " + logfile + " grep \"limiting requests\"";
+        this.command = new String[]{"grep", new SimpleDateFormat(dateFormat).format(new Date()) + ".*limiting requests", logfile};
     }
-
-    // 2017/03/14 11:32:44 [error] 12528#12528: *999 limiting requests, excess: 5.898 by zone "protectedendpoints",
-    // client: 127.0.0.1, server: _, request: "POST / HTTP/1.0", host: "localhost"
 
     @Override
     public String getAgentName() {
@@ -52,6 +46,8 @@ public class SpamAgent extends Agent {
     public void pollCycle() {
         List<Spam> requests = getSpamLogs();
 
+        logger.debug("Found " + requests.size() + " requests that were blocked.");
+
         Set<String> uniqueIpv4 = new HashSet<>();
         Set<String> uniqueIpv6 = new HashSet<>();
         Set<String> uniqueEndpoints = new HashSet<>();
@@ -60,9 +56,19 @@ public class SpamAgent extends Agent {
         Integer blockedDelete = 0;
 
         for (Spam spam : requests) {
-            if (spam.getIpv4client() != null) uniqueIpv4.add(spam.getIpv4client());
-            if (spam.getIpv6client() != null) uniqueIpv6.add(spam.getIpv6client());
+            if (spam.getIpv4client() != null) {
+                if (!uniqueIpv4.contains(spam.getIpv4client())) logger.debug("Added Ipv4: " + spam.getIpv4client());
+                uniqueIpv4.add(spam.getIpv4client());
+            }
+
+            if (spam.getIpv6client() != null) {
+                if (!uniqueIpv6.contains(spam.getIpv6client())) logger.debug("Added Ipv6: " + spam.getIpv6client());
+                uniqueIpv6.add(spam.getIpv6client());
+            }
+
+            if (!uniqueEndpoints.contains(spam.getEndpoint())) logger.debug("Added endpoint: " + spam.getEndpoint());
             uniqueEndpoints.add(spam.getEndpoint());
+
             switch (spam.getMethod()) {
                 case "POST":
                     blockedPost++;
@@ -74,6 +80,13 @@ public class SpamAgent extends Agent {
                     blockedPut++;
             }
         }
+        logger.debug("Blocked requests: " + requests.size());
+        logger.debug("Unique Ipv4: " + uniqueIpv4.size());
+        logger.debug("Unique Ipv6: " + uniqueIpv6.size());
+        logger.debug("Blocked POST: " + blockedPost);
+        logger.debug("Blocked DELETE: " + blockedDelete);
+        logger.debug("Blocked PUT: " + blockedPut);
+        logger.debug("Blocked endpoints: " + uniqueEndpoints.size());
 
         reportMetric("Blocked requests", "requests", requests.size());
         reportMetric("Unique Ipv4", "clients", uniqueIpv4.size());
@@ -117,21 +130,23 @@ public class SpamAgent extends Agent {
             }
         } catch (Exception e) {
             logger.error("Failed to execute " + command);
+            e.printStackTrace();
         }
         return logs;
     }
 
     private Spam parseSpam(String logentry) {
+        logger.debug("Parsing: " + logentry);
         Matcher matcherMethod = patternMethod.matcher(logentry);
         Matcher matcherEndpoint = patternEndpoint.matcher(logentry);
         Matcher matcherIpv4 = patternIpv4.matcher(logentry);
         Matcher matcherIpv6 = patternIpv6.matcher(logentry);
-        String method = matcherMethod.group(1);
-        String endpoint = matcherEndpoint.group(1);
-        String ipv4 = matcherIpv4.group(1);
-        String ipv6 = matcherIpv6.group(1);
+        String method = matcherMethod.find() ? matcherMethod.group(1) : "UNKNOWN";
+        String endpoint = matcherEndpoint.find() ? matcherEndpoint.group(2) : "Unknown";
+        String ipv4 = matcherIpv4.find() ? matcherIpv4.group(1) : null;
+        String ipv6 = matcherIpv6.find() ? matcherIpv6.group(1) : null;
 
-        logger.debug("Parsed spam: method " + method + "endpoint: " + endpoint + " source: " + ipv4 + ipv6);
+        logger.debug("Parsed: method " + method + ", endpoint: " + endpoint + ", ipv4: " + ipv4 + ", ipv6: " + ipv6);
         return new Spam(method, endpoint, ipv4, ipv6);
 
     }
