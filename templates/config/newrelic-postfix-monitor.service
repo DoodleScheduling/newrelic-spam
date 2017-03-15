@@ -1,0 +1,10 @@
+[Unit]
+Description=Nginx Spam New Relic Monitor
+
+[Service]
+SyslogIdentifier=newrelic-nginx-spam
+ExecStart=/usr/bin/java -jar /opt/nginxspam/plugin.jar
+WorkingDirectory=/opt/nginxspam
+
+[Install]
+WantedBy=multi-user.target
