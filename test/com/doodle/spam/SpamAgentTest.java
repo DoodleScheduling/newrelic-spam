@@ -1,4 +1,4 @@
-package com.newrelic.metrics.publish;
+package com.doodle.spam;
 
 import com.newrelic.metrics.publish.configuration.ConfigurationException;
 import org.junit.Test;

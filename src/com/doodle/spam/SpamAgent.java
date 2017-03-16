@@ -1,5 +1,6 @@
-package com.newrelic.metrics.publish;
+package com.doodle.spam;
 
+import com.newrelic.metrics.publish.Agent;
 import com.newrelic.metrics.publish.configuration.ConfigurationException;
 import com.newrelic.metrics.publish.util.Logger;
 

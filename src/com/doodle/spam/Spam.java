@@ -1,4 +1,4 @@
-package com.newrelic.metrics.publish;
+package com.doodle.spam;
 
 import java.util.Date;
 

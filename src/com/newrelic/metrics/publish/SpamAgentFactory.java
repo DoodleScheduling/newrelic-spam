@@ -1,5 +1,6 @@
 package com.newrelic.metrics.publish;
 
+import com.doodle.spam.SpamAgent;
 import com.newrelic.metrics.publish.configuration.ConfigurationException;
 
 import java.util.Map;
