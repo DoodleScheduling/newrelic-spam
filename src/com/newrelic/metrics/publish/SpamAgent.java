@@ -6,7 +6,11 @@ import com.newrelic.metrics.publish.util.Logger;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -104,7 +108,7 @@ public class SpamAgent extends Agent {
             Process process = pb.start();
             String line;
 
-            // Read standard output, and save only the last line
+            // Read standard output
             BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
             while ((line = br.readLine()) != null) {
                 logs.add(parseSpam(line));
@@ -129,8 +133,7 @@ public class SpamAgent extends Agent {
                 throw new RuntimeException();
             }
         } catch (Exception e) {
-            logger.error("Failed to execute " + command);
-            e.printStackTrace();
+            logger.error(e, "Failed to execute " + command);
         }
         return logs;
     }
@@ -148,6 +151,5 @@ public class SpamAgent extends Agent {
 
         logger.debug("Parsed: method " + method + ", endpoint: " + endpoint + ", ipv4: " + ipv4 + ", ipv6: " + ipv6);
         return new Spam(method, endpoint, ipv4, ipv6);
-
     }
 }
