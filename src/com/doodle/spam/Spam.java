@@ -1,7 +1,5 @@
 package com.doodle.spam;
 
-import java.util.Date;
-
 public class Spam {
     private final String method;
     private final String endpoint;

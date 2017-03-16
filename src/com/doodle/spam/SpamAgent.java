@@ -86,16 +86,16 @@ public class SpamAgent extends Agent {
             }
         }
         logger.debug("Blocked requests: " + requests.size());
-        logger.debug("Unique Ipv4: " + uniqueIpv4.size());
-        logger.debug("Unique Ipv6: " + uniqueIpv6.size());
+        logger.debug("Blocked unique Ipv4: " + uniqueIpv4.size());
+        logger.debug("Blocked unique Ipv6: " + uniqueIpv6.size());
         logger.debug("Blocked POST: " + blockedPost);
         logger.debug("Blocked DELETE: " + blockedDelete);
         logger.debug("Blocked PUT: " + blockedPut);
         logger.debug("Blocked endpoints: " + uniqueEndpoints.size());
 
         reportMetric("Blocked requests", "requests", requests.size());
-        reportMetric("Unique Ipv4", "clients", uniqueIpv4.size());
-        reportMetric("Unique Ipv6", "clients", uniqueIpv6.size());
+        reportMetric("Blocked unique Ipv4", "clients", uniqueIpv4.size());
+        reportMetric("Blocked unique Ipv6", "clients", uniqueIpv6.size());
         reportMetric("Blocked POST", "requests", blockedPost);
         reportMetric("Blocked DELETE", "requests", blockedDelete);
         reportMetric("Blocked PUT", "requests", blockedPut);
