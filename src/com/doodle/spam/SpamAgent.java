@@ -5,6 +5,7 @@ import com.newrelic.metrics.publish.configuration.ConfigurationException;
 import com.newrelic.metrics.publish.util.Logger;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -24,22 +25,24 @@ public class SpamAgent extends Agent {
 
     // Agent configuration, retrieved from plugin.json
     private final String name;
-    private final String[] command;
 
     // Regex patterns to match each part of the request
     private final Pattern patternMethod;
     private final Pattern patternIpv4;
     private final Pattern patternIpv6;
     private final Pattern patternEndpoint;
+    private final String dateFormat;
+    private final String logFile;
 
-    public SpamAgent(String name, String logfile, String dateFormat, String patternMethod, String patternEndpoint, String patternIpv4, String patternIpv6) throws ConfigurationException {
+    public SpamAgent(String name, String logFile, String dateFormat, String patternMethod, String patternEndpoint, String patternIpv4, String patternIpv6) throws ConfigurationException {
         super(GUID, VERSION);
         this.name = name;
         this.patternMethod = Pattern.compile(patternMethod);
         this.patternEndpoint = Pattern.compile(patternEndpoint);
         this.patternIpv4 = Pattern.compile(patternIpv4);
         this.patternIpv6 = Pattern.compile(patternIpv6);
-        this.command = new String[]{"grep", new SimpleDateFormat(dateFormat).format(new Date()) + ".*limiting requests", logfile};
+        this.dateFormat = dateFormat;
+        this.logFile = logFile;
     }
 
     @Override
@@ -49,63 +52,70 @@ public class SpamAgent extends Agent {
 
     @Override
     public void pollCycle() {
-        List<Spam> requests = getSpamLogs();
+        try {
+            List<Spam> requests = getSpamLogs();
 
-        logger.debug("Found " + requests.size() + " requests that were blocked.");
+            logger.debug("Found " + requests.size() + " requests that were blocked.");
 
-        Set<String> uniqueIpv4 = new HashSet<>();
-        Set<String> uniqueIpv6 = new HashSet<>();
-        Set<String> uniqueEndpoints = new HashSet<>();
-        Integer blockedPost = 0;
-        Integer blockedPut = 0;
-        Integer blockedDelete = 0;
+            Set<String> uniqueIpv4 = new HashSet<>();
+            Set<String> uniqueIpv6 = new HashSet<>();
+            Set<String> uniqueEndpoints = new HashSet<>();
+            Integer blockedPost = 0;
+            Integer blockedPut = 0;
+            Integer blockedDelete = 0;
 
-        for (Spam spam : requests) {
-            if (spam.getIpv4client() != null) {
-                if (!uniqueIpv4.contains(spam.getIpv4client())) logger.debug("Added Ipv4: " + spam.getIpv4client());
-                uniqueIpv4.add(spam.getIpv4client());
+            for (Spam spam : requests) {
+                if (spam.getIpv4client() != null) {
+                    if (!uniqueIpv4.contains(spam.getIpv4client())) logger.debug("Added Ipv4: " + spam.getIpv4client());
+                    uniqueIpv4.add(spam.getIpv4client());
+                }
+
+                if (spam.getIpv6client() != null) {
+                    if (!uniqueIpv6.contains(spam.getIpv6client())) logger.debug("Added Ipv6: " + spam.getIpv6client());
+                    uniqueIpv6.add(spam.getIpv6client());
+                }
+
+                if (!uniqueEndpoints.contains(spam.getEndpoint()))
+                    logger.debug("Added endpoint: " + spam.getEndpoint());
+                uniqueEndpoints.add(spam.getEndpoint());
+
+                switch (spam.getMethod()) {
+                    case "POST":
+                        blockedPost++;
+                        break;
+                    case "DELETE":
+                        blockedDelete++;
+                        break;
+                    case "PUT":
+                        blockedPut++;
+                }
             }
+            logger.debug("Blocked requests: " + requests.size());
+            logger.debug("Blocked unique Ipv4: " + uniqueIpv4.size());
+            logger.debug("Blocked unique Ipv6: " + uniqueIpv6.size());
+            logger.debug("Blocked POST: " + blockedPost);
+            logger.debug("Blocked DELETE: " + blockedDelete);
+            logger.debug("Blocked PUT: " + blockedPut);
+            logger.debug("Blocked endpoints: " + uniqueEndpoints.size());
 
-            if (spam.getIpv6client() != null) {
-                if (!uniqueIpv6.contains(spam.getIpv6client())) logger.debug("Added Ipv6: " + spam.getIpv6client());
-                uniqueIpv6.add(spam.getIpv6client());
-            }
-
-            if (!uniqueEndpoints.contains(spam.getEndpoint())) logger.debug("Added endpoint: " + spam.getEndpoint());
-            uniqueEndpoints.add(spam.getEndpoint());
-
-            switch (spam.getMethod()) {
-                case "POST":
-                    blockedPost++;
-                    break;
-                case "DELETE":
-                    blockedDelete++;
-                    break;
-                case "PUT":
-                    blockedPut++;
-            }
+            reportMetric("Blocked requests", "requests", requests.size());
+            reportMetric("Blocked unique Ipv4", "clients", uniqueIpv4.size());
+            reportMetric("Blocked unique Ipv6", "clients", uniqueIpv6.size());
+            reportMetric("Blocked POST", "requests", blockedPost);
+            reportMetric("Blocked DELETE", "requests", blockedDelete);
+            reportMetric("Blocked PUT", "requests", blockedPut);
+            reportMetric("Blocked endpoints", "endpoints", uniqueEndpoints.size());
+        } catch (Exception e){
+            // We don't want to report any metrics when there's an exception, otherwise we would be sending 0 when
+            // in fact there could be data. It's preferable that we see a gap in the graphs.
+            logger.error("There was an exception in this cycle. No data sent to new relic.");
         }
-        logger.debug("Blocked requests: " + requests.size());
-        logger.debug("Blocked unique Ipv4: " + uniqueIpv4.size());
-        logger.debug("Blocked unique Ipv6: " + uniqueIpv6.size());
-        logger.debug("Blocked POST: " + blockedPost);
-        logger.debug("Blocked DELETE: " + blockedDelete);
-        logger.debug("Blocked PUT: " + blockedPut);
-        logger.debug("Blocked endpoints: " + uniqueEndpoints.size());
-
-        reportMetric("Blocked requests", "requests", requests.size());
-        reportMetric("Blocked unique Ipv4", "clients", uniqueIpv4.size());
-        reportMetric("Blocked unique Ipv6", "clients", uniqueIpv6.size());
-        reportMetric("Blocked POST", "requests", blockedPost);
-        reportMetric("Blocked DELETE", "requests", blockedDelete);
-        reportMetric("Blocked PUT", "requests", blockedPut);
-        reportMetric("Blocked endpoints", "endpoints", uniqueEndpoints.size());
     }
 
-    private List<Spam> getSpamLogs() {
+    private List<Spam> getSpamLogs() throws RuntimeException, IOException, InterruptedException {
         List<Spam> logs = new ArrayList<>();
         try {
-            ProcessBuilder pb = new ProcessBuilder(command);
+            ProcessBuilder pb = new ProcessBuilder(getCommand());
             Process process = pb.start();
             String line;
 
@@ -126,15 +136,15 @@ public class SpamAgent extends Agent {
             // Wait for the command to finish
             int returnCode = process.waitFor();
             if (returnCode != 0) {
-                logger.error("Command '" + command + "' returned code: " + returnCode);
+                logger.error("Command '" + getReadableCommand() + "' returned code: " + returnCode);
                 if (output.length() > 0) {
-                    logger.error("Standard error:");
-                    logger.error(output);
+                    logger.error("Standard error: " + System.getProperty("line.separator") + output);
                 }
                 throw new RuntimeException();
             }
         } catch (Exception e) {
-            logger.error(e, "Failed to execute " + command);
+            logger.error(e, "Failed to execute " + getReadableCommand());
+            throw e;
         }
         return logs;
     }
@@ -152,5 +162,17 @@ public class SpamAgent extends Agent {
 
         logger.debug("Parsed: method " + method + ", endpoint: " + endpoint + ", ipv4: " + ipv4 + ", ipv6: " + ipv6);
         return new Spam(method, endpoint, ipv4, ipv6);
+    }
+
+    private String[] getCommand() {
+        return new String[]{"grep", new SimpleDateFormat(dateFormat).format(new Date()) + ".*limiting requests", logFile};
+    }
+
+    private String getReadableCommand() {
+        String readableCommand = "";
+        for (String i : getCommand()) {
+            readableCommand += i + " ";
+        }
+        return readableCommand;
     }
 }
