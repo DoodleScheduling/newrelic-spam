@@ -135,7 +135,7 @@ public class SpamAgent extends Agent {
 
             // Wait for the command to finish
             int returnCode = process.waitFor();
-            if (returnCode != 0) {
+            if (returnCode != 0 && returnCode != 1) {
                 logger.error("Command '" + getReadableCommand() + "' returned code: " + returnCode);
                 if (output.length() > 0) {
                     logger.error("Standard error: " + System.getProperty("line.separator") + output);
