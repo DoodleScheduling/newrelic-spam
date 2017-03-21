@@ -99,11 +99,11 @@ public class SpamAgent extends Agent {
             logger.debug("Blocked endpoints: " + uniqueEndpoints.size());
 
             reportMetric("Blocked requests", "requests", requests.size());
-            reportMetric("Blocked unique Ipv4", "clients", uniqueIpv4.size());
-            reportMetric("Blocked unique Ipv6", "clients", uniqueIpv6.size());
-            reportMetric("Blocked POST", "requests", blockedPost);
-            reportMetric("Blocked DELETE", "requests", blockedDelete);
-            reportMetric("Blocked PUT", "requests", blockedPut);
+            reportMetric("Blocked clients Ipv4", "clients", uniqueIpv4.size());
+            reportMetric("Blocked clients Ipv6", "clients", uniqueIpv6.size());
+            reportMetric("Blocked method POST", "requests", blockedPost);
+            reportMetric("Blocked method DELETE", "requests", blockedDelete);
+            reportMetric("Blocked method PUT", "requests", blockedPut);
             reportMetric("Blocked endpoints", "endpoints", uniqueEndpoints.size());
         } catch (Exception e){
             // We don't want to report any metrics when there's an exception, otherwise we would be sending 0 when
