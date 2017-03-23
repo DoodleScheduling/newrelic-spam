@@ -165,7 +165,7 @@ public class SpamAgent extends Agent {
     }
 
     private String[] getCommand() {
-        return new String[]{"grep", new SimpleDateFormat(dateFormat).format(new Date()) + ".*limiting requests", logFile};
+        return new String[]{"/bin/egrep", new SimpleDateFormat(dateFormat).format(new Date()) + ".*(delaying|limiting) request", logFile};
     }
 
     private String getReadableCommand() {
